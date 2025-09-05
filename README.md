@@ -1,16 +1,60 @@
+
 # win_native_integration
 
-A new Flutter project.
+This project demonstrates native Windows integration with Flutter, including communication between Dart and C++ code using platform channels.
 
-## Getting Started
+## File: `windows/runner/flutter_window.cpp`
 
-This project is a starting point for a Flutter application.
+### Overview
 
-A few resources to get you started if this is your first Flutter project:
+This file implements the `FlutterWindow` class, which manages the native Windows window for the Flutter application. It demonstrates how to:
+- Initialize and manage the Flutter engine and view controller on Windows.
+- Set up a method channel for communication between Dart and native C++ code.
+- Expose native Windows APIs (such as battery status) to Flutter via platform channels.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### Key Features
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- **Battery Level Platform Channel**: Implements a method channel (`samples.flutter.dev/battery`) that allows Flutter code to request the current battery level from Windows using the `GetSystemPowerStatus` API.
+- **Window Lifecycle Management**: Handles window creation, destruction, and message processing, integrating with the Flutter engine.
+- **Plugin Registration**: Registers generated plugins with the Flutter engine.
+
+### Main Components
+
+- `FlutterWindow::OnCreate()`: Initializes the Flutter view controller, sets up the method channel, and registers plugins.
+- `GetBatteryLevel()`: Retrieves the current battery level from the Windows system.
+- `MessageHandler()`: Handles Windows messages and passes them to Flutter when appropriate.
+
+### Example: Battery Level Channel
+
+```cpp
+flutter::MethodChannel<> channel(
+		flutter_controller_->engine()->messenger(), "samples.flutter.dev/battery",
+		&flutter::StandardMethodCodec::GetInstance());
+channel.SetMethodCallHandler(
+		[](const flutter::MethodCall<> &call,
+			 std::unique_ptr<flutter::MethodResult<>> result)
+		{
+			if (call.method_name() == "getBatteryLevel")
+			{
+				int battery_level = GetBatteryLevel();
+				if (battery_level != -1)
+				{
+					result->Success(battery_level);
+				}
+				else
+				{
+					result->Error("UNAVAILABLE", "Battery level not available.");
+				}
+			}
+			else
+			{
+				result->NotImplemented();
+			}
+		});
+```
+
+This allows Dart code to call `getBatteryLevel` and receive the current battery percentage from Windows.
+
+---
+
+For more details, see the source code in `windows/runner/flutter_window.cpp`.
